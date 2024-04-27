@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.ziva.spring.boot.jpa.cfg.JpaBeansBuilder
