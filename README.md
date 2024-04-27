@@ -1,4 +1,4 @@
-# spring-boot-multi-jdbc
+# spring-boot-multi-jpa
 
 Provide automatic configuration of multiple jpa for Spring boot
 
