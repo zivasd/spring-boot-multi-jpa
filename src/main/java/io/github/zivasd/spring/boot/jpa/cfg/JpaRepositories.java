@@ -1,4 +1,4 @@
-package com.ziva.spring.boot.jpa.cfg;
+package io.github.zivasd.spring.boot.jpa.cfg;
 
 public class JpaRepositories {
     private String[] basePackages = new String[] {};

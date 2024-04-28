@@ -1,4 +1,4 @@
-package com.ziva.spring.boot.jpa.cfg;
+package io.github.zivasd.spring.boot.jpa.cfg;
 
 import java.util.List;
 

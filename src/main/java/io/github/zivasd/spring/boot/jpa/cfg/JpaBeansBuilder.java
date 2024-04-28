@@ -1,4 +1,4 @@
-package com.ziva.spring.boot.jpa.cfg;
+package io.github.zivasd.spring.boot.jpa.cfg;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -9,7 +9,11 @@ import java.util.Map;
 import javax.persistence.EntityManagerFactory;
 import javax.sql.DataSource;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeansException;
+import org.springframework.beans.factory.BeanNotOfRequiredTypeException;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.beans.factory.config.ConfigurableListableBeanFactory;
@@ -46,10 +50,12 @@ import org.springframework.orm.jpa.vendor.AbstractJpaVendorAdapter;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.PlatformTransactionManager;
 
-@Component("com.ziva.spring.boot.jpa.cfg.JpaBeansBuilder")
-@ComponentScan({ "com.ziva.spring.boot.jpa.cfg" })
+@Component("io.github.zivasd.spring.boot.jpa.cfg.JpaBeansBuilder")
+@ComponentScan({ "io.github.zivasd.spring.boot.jpa.cfg" })
 public class JpaBeansBuilder
         implements BeanDefinitionRegistryPostProcessor, EnvironmentAware, ApplicationContextAware, ResourceLoaderAware {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(JpaBeansBuilder.class);
 
     private Map<String, JpaPropertiesExt> jpaes;
 
@@ -133,8 +139,26 @@ public class JpaBeansBuilder
         JpaPropertiesExt jpa = jpaes.get(unit);
         EntityManagerFactoryBuilder builder = this.applicationContext.getBean(unit + "EntityManagerFactoryBuilder",
                 EntityManagerFactoryBuilder.class);
-        DataSource dataSourceObject = this.applicationContext.getBean(jpa.getDataSource() + "DataSource",
-                DataSource.class);
+
+        DataSource dataSourceObject = null;
+        try {
+            this.applicationContext.getBean(jpa.getDataSource(), DataSource.class);
+        } catch (NoSuchBeanDefinitionException | BeanNotOfRequiredTypeException e) {
+            LOGGER.info("Initialized JPA fault with DataSource: {} fault, Try  DataSource bean named {}.",
+                    jpa.getDataSource(), jpa.getDataSource() + "DataSource");
+        }
+        if (dataSourceObject == null) {
+            try {
+                dataSourceObject = this.applicationContext.getBean(jpa.getDataSource() + "DataSource",
+                        DataSource.class);
+            } catch (NoSuchBeanDefinitionException | BeanNotOfRequiredTypeException e) {
+                LOGGER.error(
+                        "Initialized JPA fault with DataSource: {} fault!! Please check your DataSource configuration.",
+                        jpa.getDataSource() + "DataSource");
+                throw new RuntimeException(e);
+            }
+        }
+
         Map<String, Object> properties = null;
         if (jpa.getHibernate() == null) {
             properties = new HashMap<>();

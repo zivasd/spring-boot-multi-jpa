@@ -15,7 +15,9 @@ spring:
   application:
     name: sample
   jpas:
+    # EntityManager bean name as primaryEntityManager, similar to EntityManagerFactoryBuild, EntityManagerFactory and TransactionManager.
     primary:
+      # search bean named primary first, search bean named primaryDataSource if not found.
       data-source: primary
       base-packages:
         - com.example.entity

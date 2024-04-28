@@ -4,7 +4,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>io.github.zivasd</groupId>
 	<artifactId>spring-boot-multi-jpa</artifactId>
-	<version>1.0.2</version>
+	<version>1.0.3</version>
 	<name>SpringBoot Multiple JPA</name>
 	<description>Provide automatic configuration of multiple jpa for Springboot</description>
 	<url>https://github.com/zivasd/spring-boot-multi-jpa</url>
