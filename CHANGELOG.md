@@ -2,6 +2,11 @@
 
 -------------------------------------------------------------------------------------------------------------
 
+## 1.0.4(2024-11-06)
+
+* 允许不配置repositories,可以在程序中使用@EnableJpaRepositories
+* 支持Repeatable Annotation EnableMultipleJpaRepositories
+
 ## 1.0.3(2024-04-28)
 
 * 修改包名，适配github.

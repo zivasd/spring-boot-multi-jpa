@@ -1,0 +1,10 @@
+{
+    "properties": [
+        {
+            "name": "spring.jpas",
+            "type": "java.util.Map",
+            "description": "mutiple JPA entities",
+            "required": false
+        }
+    ]
+}

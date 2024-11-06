@@ -21,6 +21,9 @@ import org.springframework.beans.factory.config.ConstructorArgumentValues;
 import org.springframework.beans.factory.support.BeanDefinitionRegistry;
 import org.springframework.beans.factory.support.BeanDefinitionRegistryPostProcessor;
 import org.springframework.beans.factory.support.GenericBeanDefinition;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.orm.jpa.EntityManagerFactoryBuilderCustomizer;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateSettings;
 import org.springframework.boot.context.properties.bind.Bindable;
@@ -39,25 +42,32 @@ import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.jpa.repository.config.JpaRepositoryConfigExtension;
+import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
 import org.springframework.data.repository.config.AnnotationRepositoryConfigurationSource;
 import org.springframework.data.repository.config.RepositoryConfigurationDelegate;
+import org.springframework.data.repository.config.RepositoryConfigurationExtension;
+import org.springframework.data.repository.config.RepositoryConfigurationUtils;
 import org.springframework.lang.NonNull;
 import org.springframework.orm.jpa.JpaTransactionManager;
 import org.springframework.orm.jpa.JpaVendorAdapter;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.persistenceunit.PersistenceUnitManager;
 import org.springframework.orm.jpa.vendor.AbstractJpaVendorAdapter;
-import org.springframework.stereotype.Component;
+
 import org.springframework.transaction.PlatformTransactionManager;
 
-@Component("io.github.zivasd.spring.boot.jpa.cfg.JpaBeansBuilder")
+@AutoConfiguration(value = "io.github.zivasd.spring.boot.jpa.cfg.JpaBeansBuilder", afterName = "io.github.zivasd.spring.boot.jdbc.cfg.DataSourceBeansBuilder")
 @ComponentScan({ "io.github.zivasd.spring.boot.jpa.cfg" })
+@ConditionalOnBean(DataSource.class)
 public class JpaBeansBuilder
         implements BeanDefinitionRegistryPostProcessor, EnvironmentAware, ApplicationContextAware, ResourceLoaderAware {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(JpaBeansBuilder.class);
 
-    private Map<String, JpaPropertiesExt> jpaes;
+    private static final String ENTITYMANAGER_FACTORY_POSTFIX = "EntityManagerFactory";
+    private static final String DATASOURCE_POSTFIX = "DataSource";
+
+    private Map<String, JpaPropertiesExt> jpas;
 
     private Environment environment;
     private ResourceLoader resourceLoader;
@@ -65,32 +75,34 @@ public class JpaBeansBuilder
 
     @Override
     public void postProcessBeanFactory(@NonNull ConfigurableListableBeanFactory beanFactory) throws BeansException {
-
+        // not needed
     }
 
     @Override
     public void postProcessBeanDefinitionRegistry(@NonNull BeanDefinitionRegistry registry) throws BeansException {
-        Binder binder = Binder.get(environment);
-        jpaes = binder.bind("spring.jpas", Bindable.mapOf(String.class, JpaPropertiesExt.class)).get();
+        registry.removeBeanDefinition("willRemovedTempEntityManagerFactoryBuilder");
+        registry.removeBeanDefinition("willRemovedTempEntityManagerFactory");
+        registry.removeBeanDefinition("willRemovedTempTransactionManager");
 
-        if (jpaes == null || jpaes.size() == 0)
+        Binder binder = Binder.get(environment);
+        jpas = binder.bind("spring.jpas", Bindable.mapOf(String.class, JpaPropertiesExt.class)).get();
+
+        if (jpas == null || jpas.size() == 0)
             return;
 
-        registry.removeBeanDefinition("WillRemovedTempEntityManagerFactoryBuilder");
-        registry.removeBeanDefinition("WillRemovedTempEntityManagerFactory");
-        registry.removeBeanDefinition("WillRemovedTempTransactionManager");
-
         boolean primary = true;
-        for (Map.Entry<String, JpaPropertiesExt> entry : jpaes.entrySet()) {
+        for (Map.Entry<String, JpaPropertiesExt> entry : jpas.entrySet()) {
             registerEntityManagerFactoryBuild(registry, entry.getKey(), primary);
             registerEntityManagerFactory(registry, entry.getKey(), primary);
             registerTransactionManager(registry, entry.getKey(), primary);
             primary = false;
         }
 
-        for (Map.Entry<String, JpaPropertiesExt> entry : jpaes.entrySet()) {
+        for (Map.Entry<String, JpaPropertiesExt> entry : jpas.entrySet()) {
             String unit = entry.getKey();
-            AnnotationMetadata metadata = createAnnotationMetadata(unit + "EntityManagerFactory",
+            if (entry.getValue().getRepositories().getBasePackages().length == 0)
+                continue;
+            AnnotationMetadata metadata = createAnnotationMetadata(unit + ENTITYMANAGER_FACTORY_POSTFIX,
                     unit + "TransactionManager", entry.getValue().getRepositories().getBasePackages());
 
             AnnotationRepositoryConfigurationSource configurationSource = new AnnotationRepositoryConfigurationSource(
@@ -98,10 +110,13 @@ public class JpaBeansBuilder
                     JpaBeansBuilder.this.resourceLoader, JpaBeansBuilder.this.environment,
                     registry,
                     ConfigurationClassPostProcessor.IMPORT_BEAN_NAME_GENERATOR);
+
+            RepositoryConfigurationExtension extension = new JpaRepositoryConfigExtension();
+            RepositoryConfigurationUtils.exposeRegistration(extension, registry, configurationSource);
             RepositoryConfigurationDelegate delegate = new RepositoryConfigurationDelegate(configurationSource,
                     resourceLoader,
                     environment);
-            delegate.registerRepositoriesIn(registry, new JpaRepositoryConfigExtension());
+            delegate.registerRepositoriesIn(registry, extension);
         }
     }
 
@@ -112,7 +127,7 @@ public class JpaBeansBuilder
 
     private void registerEntityManagerFactory(@NonNull BeanDefinitionRegistry registry, String unitName,
             boolean primary) {
-        registerBean(registry, "entityManagerFactory", unitName, "EntityManagerFactory", primary);
+        registerBean(registry, "entityManagerFactory", unitName, ENTITYMANAGER_FACTORY_POSTFIX, primary);
     }
 
     private void registerTransactionManager(@NonNull BeanDefinitionRegistry registry, String unitName,
@@ -124,19 +139,19 @@ public class JpaBeansBuilder
             ObjectProvider<PersistenceUnitManager> persistenceUnitManager,
             ObjectProvider<EntityManagerFactoryBuilderCustomizer> customizers, String unit) {
 
-        JpaPropertiesExt jpaProperties = this.jpaes.get(unit);
+        JpaPropertiesExt jpaProperties = this.jpas.get(unit);
         AbstractJpaVendorAdapter adapter = (AbstractJpaVendorAdapter) jpaVendorAdapter;
         adapter.setDatabasePlatform(jpaProperties.getDatabasePlatform());
         adapter.setGenerateDdl(jpaProperties.isGenerateDdl());
         adapter.setShowSql(jpaProperties.isShowSql());
         EntityManagerFactoryBuilder builder = new EntityManagerFactoryBuilder(jpaVendorAdapter,
                 jpaProperties.getProperties(), persistenceUnitManager.getIfAvailable());
-        customizers.orderedStream().forEach((customizer) -> customizer.customize(builder));
+        customizers.orderedStream().forEach(customizer -> customizer.customize(builder));
         return builder;
     }
 
     public LocalContainerEntityManagerFactoryBean entityManagerFactory(@NonNull String unit) {
-        JpaPropertiesExt jpa = jpaes.get(unit);
+        JpaPropertiesExt jpa = jpas.get(unit);
         EntityManagerFactoryBuilder builder = this.applicationContext.getBean(unit + "EntityManagerFactoryBuilder",
                 EntityManagerFactoryBuilder.class);
 
@@ -145,17 +160,17 @@ public class JpaBeansBuilder
             this.applicationContext.getBean(jpa.getDataSource(), DataSource.class);
         } catch (NoSuchBeanDefinitionException | BeanNotOfRequiredTypeException e) {
             LOGGER.info("Initialized JPA fault with DataSource: {} fault, Try  DataSource bean named {}.",
-                    jpa.getDataSource(), jpa.getDataSource() + "DataSource");
+                    jpa.getDataSource(), jpa.getDataSource() + DATASOURCE_POSTFIX);
         }
         if (dataSourceObject == null) {
             try {
-                dataSourceObject = this.applicationContext.getBean(jpa.getDataSource() + "DataSource",
+                dataSourceObject = this.applicationContext.getBean(jpa.getDataSource() + DATASOURCE_POSTFIX,
                         DataSource.class);
             } catch (NoSuchBeanDefinitionException | BeanNotOfRequiredTypeException e) {
                 LOGGER.error(
                         "Initialized JPA fault with DataSource: {} fault!! Please check your DataSource configuration.",
-                        jpa.getDataSource() + "DataSource");
-                throw new RuntimeException(e);
+                        jpa.getDataSource() + DATASOURCE_POSTFIX);
+                throw e;
             }
         }
 
@@ -184,7 +199,7 @@ public class JpaBeansBuilder
 
     public PlatformTransactionManager transactionManager(String unit) {
         EntityManagerFactory entityManagerFactoryBean = this.applicationContext
-                .getBean(unit + "EntityManagerFactory", EntityManagerFactory.class);
+                .getBean(unit + ENTITYMANAGER_FACTORY_POSTFIX, EntityManagerFactory.class);
         return new JpaTransactionManager(entityManagerFactoryBean);
     }
 
@@ -222,7 +237,7 @@ public class JpaBeansBuilder
 
     private AnnotationMetadata createAnnotationMetadata(String emfRef, String tmRef,
             String[] packages) {
-        AnnotationMetadata obj = AnnotationMetadata.introspect(EnableJpaRepositoriesI.class);
+        AnnotationMetadata obj = AnnotationMetadata.introspect(EnableJpaRepositoriesDiabled.class);
         return (AnnotationMetadata) Proxy.newProxyInstance(obj.getClass().getClassLoader(),
                 new Class[] { AnnotationMetadata.class },
                 new AnnotationMetadataInvocationHandler(obj, emfRef, tmRef, packages));
@@ -252,6 +267,8 @@ public class JpaBeansBuilder
                 r.put("transactionManagerRef", transactionManagerRef);
                 r.put("basePackages", basePackages);
                 return r;
+            } else if ("getClassName".equals(method.getName())) {
+                return EnableJpaRepositoriesDiabled.class.getName();
             }
             return method.invoke(instance, args);
         }
@@ -260,26 +277,27 @@ public class JpaBeansBuilder
     @Configuration
     static class WillRemovedTemporarilyBeans {
 
-        @Bean(name = "WillRemovedTempEntityManagerFactoryBuilder")
+        @Bean(name = "willRemovedTempEntityManagerFactoryBuilder")
         EntityManagerFactoryBuilder entityManagerFactoryBuilder(JpaVendorAdapter jpaVendorAdapter,
                 ObjectProvider<PersistenceUnitManager> persistenceUnitManager,
                 ObjectProvider<EntityManagerFactoryBuilderCustomizer> customizers) {
             return null;
         }
 
-        @Bean(name = "WillRemovedTempEntityManagerFactory")
+        @Bean(name = "willRemovedTempEntityManagerFactory")
         LocalContainerEntityManagerFactoryBean entityManagerFactory(EntityManagerFactoryBuilder builder) {
             return null;
         }
 
-        @Bean(name = "WillRemovedTempTransactionManager")
+        @Bean(name = "willRemovedTempTransactionManager")
         PlatformTransactionManager transactionManager(EntityManagerFactoryBuilder builder) {
             return null;
         }
     }
 
     @EnableJpaRepositories
-    static class EnableJpaRepositoriesI {
+    @ConditionalOnMissingBean({ JpaRepositoryFactoryBean.class, JpaRepositoryConfigExtension.class })
+    static class EnableJpaRepositoriesDiabled {
 
     }
 }

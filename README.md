@@ -14,7 +14,7 @@ SpringBoot Configuration Sample
 spring:
   application:
     name: sample
-  jpas:
+  jpaes:
     # EntityManager bean name as primaryEntityManager, similar to EntityManagerFactoryBuild, EntityManagerFactory and TransactionManager.
     primary:
       # search bean named primary first, search bean named primaryDataSource if not found.
