@@ -1,0 +1,52 @@
+spring:
+  main:
+    allow-circular-references: false
+  application:
+    name: sample
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: GMT+8
+    default-property-inclusion: NON_NULL
+  mvc:
+    static-path-pattern: /**
+  datasources:
+    primary:
+      driver-class-name: org.h2.Driver
+      url: jdbc:h2:mem:testdb;
+      username: sa
+      password:
+    secondary:
+      driver-class-name: org.h2.Driver
+      url: jdbc:h2:mem:testdb2;
+      username: sa
+      password:      
+  jpas:
+    primary:
+      data-source: primary
+      base-packages:
+        - multiple.jpa.sample.primary.entity
+      repositories:
+        base-packages:
+          - multiple.jpa.sample.primary.dao
+      generate-ddl: false
+      show-sql: true
+      open-in-view: true
+      database-platform: org.hibernate.dialect.H2Dialect
+      hibernate:
+        ddl-auto: none
+    secondary:
+      data-source: secondary
+      base-packages:
+        - multiple.jpa.sample.secondary.entity
+      repositories:
+        base-packages:
+          - multiple.jpa.sample.secondary.dao
+      generate-ddl: false
+      show-sql: true
+      open-in-view: true
+      database-platform: org.hibernate.dialect.H2Dialect
+      hibernate:
+        ddl-auto: none        
+logging:
+  level:
+    root: info

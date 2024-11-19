@@ -23,8 +23,8 @@ import org.springframework.lang.NonNull;
 import org.springframework.util.Assert;
 
 class MultipleJpaRepositoriesRegistrar extends RepositoryBeanDefinitionRegistrarSupport {
-    private @SuppressWarnings("null") @NonNull ResourceLoader resourceLoader;
-    private @SuppressWarnings("null") @NonNull Environment environment;
+    private @NonNull ResourceLoader resourceLoader;
+    private @NonNull Environment environment;
 
     @Override
     public void setResourceLoader(@NonNull ResourceLoader resourceLoader) {
