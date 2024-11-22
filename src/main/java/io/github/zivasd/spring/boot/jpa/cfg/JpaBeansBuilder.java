@@ -25,6 +25,7 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureBefore;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.data.jpa.JpaRepositoriesAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.EntityManagerFactoryBuilderCustomizer;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration;
 import org.springframework.boot.autoconfigure.orm.jpa.HibernateSettings;
@@ -58,7 +59,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 
-@AutoConfiguration(value = "io.github.zivasd.spring.boot.jpa.cfg.JpaBeansBuilder", afterName = "io.github.zivasd.spring.boot.jdbc.cfg.DataSourceBeansBuilder")
+@AutoConfiguration(value = "io.github.zivasd.spring.boot.jpa.cfg.JpaBeansBuilder", afterName = "io.github.zivasd.spring.boot.jdbc.cfg.DataSourceBeansBuilder", before = JpaRepositoriesAutoConfiguration.class)
 @AutoConfigureBefore(value = HibernateJpaAutoConfiguration.class)
 @ComponentScan({ "io.github.zivasd.spring.boot.jpa.cfg" })
 @ConditionalOnBean(DataSource.class)
@@ -84,6 +85,7 @@ public class JpaBeansBuilder
 
     @Override
     public void postProcessBeanDefinitionRegistry(@NonNull BeanDefinitionRegistry registry) throws BeansException {
+        registry.removeBeanDefinition(WillRemovedTemporarilyBeans.REMOVED_JPA_REPOSITORY_CONFIGEXTENSION);
         registry.removeBeanDefinition(WillRemovedTemporarilyBeans.REMOVED_ENTITYMANAGER_FACTORYBUILDER);
         registry.removeBeanDefinition(WillRemovedTemporarilyBeans.REMOVE_ENTITYMANAGER_FACTORY);
         boolean doRegisterTM = registry
@@ -313,6 +315,12 @@ public class JpaBeansBuilder
         static final String REMOVE_ENTITYMANAGER_FACTORY = "willRemovedTempEntityManagerFactory";
         static final String REMOVED_JPA_TRANSACTION_MANAGER1 = "willRemovedTempJPATransactionManager1";
         static final String REMOVED_JPA_TRANSACTION_MANAGER2 = "willRemovedTempJPATransactionManager2";
+        static final String REMOVED_JPA_REPOSITORY_CONFIGEXTENSION = "willRemovedTempJPARepositoryConfigExtension";
+
+        @Bean("willRemovedTempJPARepositoryConfigExtension")
+        JpaRepositoryConfigExtension jpaRepositoryConfigExtension() {
+            return null;
+        }
 
         @Bean(name = REMOVED_ENTITYMANAGER_FACTORYBUILDER)
         EntityManagerFactoryBuilder entityManagerFactoryBuilder() {

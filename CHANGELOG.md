@@ -4,6 +4,7 @@
 ## 1.0.5
 
 * create TransactionTemplate
+* 在使用多数据仓库时，须设置spring.data.jpa.repositories.enabled=false
 
 
 ## 1.0.4(2024-11-06)

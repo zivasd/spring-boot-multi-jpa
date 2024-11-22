@@ -20,10 +20,6 @@ spring:
       url: jdbc:h2:mem:testdb2;
       username: sa
       password:
-  data:
-    jpa:
-      repositories:
-        enabled: false    
   jpas:
     primary:
       data-source: primary
