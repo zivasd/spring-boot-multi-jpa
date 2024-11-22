@@ -44,7 +44,6 @@ import org.springframework.core.io.ResourceLoader;
 import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.data.jpa.repository.config.JpaRepositoryConfigExtension;
-import org.springframework.data.jpa.repository.support.JpaRepositoryFactoryBean;
 import org.springframework.data.repository.config.AnnotationRepositoryConfigurationSource;
 import org.springframework.data.repository.config.RepositoryConfigurationDelegate;
 import org.springframework.data.repository.config.RepositoryConfigurationExtension;
@@ -270,7 +269,8 @@ public class JpaBeansBuilder
 
     private AnnotationMetadata createAnnotationMetadata(String emfRef, String tmRef,
             String[] packages) {
-        AnnotationMetadata obj = AnnotationMetadata.introspect(EnableJpaRepositoriesDiabled.class);
+        AnnotationMetadata obj = AnnotationMetadata
+                .introspect(JpaRepositoriesConfiguration.JpaRepositoriesFactory.class);
         return (AnnotationMetadata) Proxy.newProxyInstance(obj.getClass().getClassLoader(),
                 new Class[] { AnnotationMetadata.class },
                 new AnnotationMetadataInvocationHandler(obj, emfRef, tmRef, packages));
@@ -301,7 +301,7 @@ public class JpaBeansBuilder
                 r.put("basePackages", basePackages);
                 return r;
             } else if ("getClassName".equals(method.getName())) {
-                return EnableJpaRepositoriesDiabled.class.getName();
+                return JpaRepositoriesConfiguration.class.getName();
             }
             return method.invoke(instance, args);
         }
@@ -337,9 +337,14 @@ public class JpaBeansBuilder
         }
     }
 
-    @EnableJpaRepositories
-    @ConditionalOnMissingBean({ JpaRepositoryFactoryBean.class, JpaRepositoryConfigExtension.class })
-    static class EnableJpaRepositoriesDiabled {
+    @ConditionalOnMissingBean(name = "io.github.zivasd.spring.boot.jpa.cfg.JpaBeansBuilder")
+    static class JpaRepositoriesConfiguration {
+        private JpaRepositoriesConfiguration() {
+        }
 
+        @EnableJpaRepositories
+        static class JpaRepositoriesFactory {
+
+        }
     }
 }
