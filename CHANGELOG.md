@@ -1,10 +1,10 @@
 # Changelog
 
 -------------------------------------------------------------------------------------------------------------
-## 1.0.5
+## 1.0.5(2024-11-22)
 
 * create TransactionTemplate
-* 在使用多数据仓库时，须设置spring.data.jpa.repositories.enabled=false
+* 禁止Spring Jpa模块的Jpa Repositories自动配置
 
 
 ## 1.0.4(2024-11-06)
